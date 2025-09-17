@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Início - MicroSec{% endblock %}
+
+{% block head %}
+<link href="/static/css/index.css" rel="stylesheet">
+{% endblock %}
+
+
+{% block content %}
+<section class="hero-section">
+    <div class="hero-content">
+        <h1>Bem-vindo ao <span class="highlight">{{display_name}}</span></h1>
+        <p>Sua central inteligente de segurança e automação de rede</p>
+        <a href="{{ url_for('ipsec.ipsec_home') }}" class="btn-primary">Começar com IPsec Creator</a>
+    </div>
+</section>
+
+<section class="features-grid">
+    <div class="feature-card">
+        <span class="material-symbols-outlined icon">lock</span>
+        <h3>IPsec Creator</h3>
+        <a href="{{ url_for('ipsec.ipsec_home') }}" class="btn-link">Acessar</a>
+    </div>
+    <div class="feature-card">
+        <span class="material-symbols-outlined icon">backup</span>
+        <h3>Firewall Backup</h3>
+        <a href="{{ url_for('fw_backup.fw_backup_home') }}" class="btn-link">Acessar</a>
+    </div>
+</section>
+{% endblock %}
