@@ -119,5 +119,8 @@ def create_ipsec():
         
 @bp.route('/backup/create', methods=['POST'])
 def create_backup_schedule():
-    data = request.get_json()
-    print(data)
+    print("=== DEBUG INFO ===")
+    print("Content-Type:", request.content_type)
+    print("Form data:", dict(request.form))
+    print("Files:", dict(request.files))
+    print("Has tls_cert file:", 'tls_cert' in request.files)
