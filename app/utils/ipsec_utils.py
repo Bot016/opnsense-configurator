@@ -1,41 +1,13 @@
-from app.utils.api_utils import api_call
+from app.utils.firewall_utils import opnsenseUtils
+from app.utils.ip_utils import ipValidations
 from typing import Dict, List, Tuple
 from flask import g
-import ipaddress
 import re
 
 class IPsecValidator:
     @staticmethod
-    def is_valid_ip(ip: str) -> bool:
-        try:
-            ipaddress.IPv4Address(ip)
-            return True
-        except ipaddress.AddressValueError:
-            return False
-    
-    @staticmethod
-    def is_valid_subnet(subnet: str) -> bool:
-        try:
-            # precisa ter "/" para ser uma rede
-            if "/" not in subnet:
-                return False
-            ipaddress.IPv4Network(subnet, strict=False)
-            return True
-        except (ipaddress.AddressValueError, ipaddress.NetmaskValueError, ValueError):
-            return False
-    
-    @staticmethod
-    def is_ip_in_network(ip: str, network: str) -> bool:
-        try:
-            ip_obj = ipaddress.IPv4Address(ip)
-            network_obj = ipaddress.IPv4Network(network, strict=False)
-            return ip_obj in network_obj
-        except (ipaddress.AddressValueError, ipaddress.NetmaskValueError, ValueError):
-            return False
-    
-    @staticmethod
     def is_valid_identifier(identifier: str) -> bool:
-        if IPsecValidator.is_valid_ip(identifier):
+        if ipValidations.is_valid_ip(identifier):
             return True
         
         email_pattern = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
@@ -57,11 +29,29 @@ class IPsecValidator:
         return bool(re.match(pattern, psk))
     
     @staticmethod
+    def get_ipsec_interface_name():
+        response = opnsenseUtils.api_call("firewall/one_to_one/get_rule")
+
+        interfaces = response.get("rule", {}).get("interface", {})
+        for iface_key, iface_data in interfaces.items():
+            if iface_data.get("value") == 'IPsec':
+                return iface_key
+        
+        return None
+    
+    @staticmethod
+    def get_cached_tunnel_options():
+        if not hasattr(g, 'tunnel_options'):
+            endpoint = "ipsec/connections/search_connection"
+            response = opnsenseUtils.api_call(endpoint)
+            g.tunnel_options = [
+                {"uuid": row["uuid"], "description": row["description"]}
+                for row in response.get("rows", [])
+            ]
+        return g.tunnel_options
+
+    @staticmethod
     def validate_ipsec_data(data: Dict) -> Tuple[bool, List[str]]:
-        """
-        Validate all datas
-        Return (is_valid, list_of_errors)
-        """
         errors = []
         
         # Client name 
@@ -75,24 +65,24 @@ class IPsecValidator:
         local_subnet = data.get('local_subnet', '').strip()
         if not local_subnet:
             errors.append("Local Subnet é obrigatório")
-        elif not IPsecValidator.is_valid_subnet(local_subnet):
+        elif not ipValidations.is_valid_subnet(local_subnet):
             errors.append("Local Subnet deve ser uma rede válida (ex: 192.168.1.0/24)")
         
         # Remote Subnet
         remote_subnet = data.get('remote_subnet', '').strip()
         if not remote_subnet:
             errors.append("Remote Subnet é obrigatório")
-        elif not IPsecValidator.is_valid_subnet(remote_subnet):
+        elif not ipValidations.is_valid_subnet(remote_subnet):
             errors.append("Remote Subnet deve ser uma rede válida (ex: 10.1.30.0/24)")
         
         # Keep Alive IP
         keep_alive_ip = data.get('keep_alive_ip', '').strip()
         if not keep_alive_ip:
             errors.append("Keep Alive IP é obrigatório")
-        elif not IPsecValidator.is_valid_ip(keep_alive_ip):
+        elif not ipValidations.is_valid_ip(keep_alive_ip):
             errors.append("Keep Alive IP deve ser um endereço IP válido")
-        elif (remote_subnet and IPsecValidator.is_valid_subnet(remote_subnet) and 
-              not IPsecValidator.is_ip_in_network(keep_alive_ip, remote_subnet)):
+        elif (remote_subnet and ipValidations.is_valid_subnet(remote_subnet) and 
+              not ipValidations.is_ip_in_network(keep_alive_ip, remote_subnet)):
             errors.append("Keep Alive IP deve estar dentro da rede do Remote Subnet")
         
         # Local identifier
@@ -128,7 +118,7 @@ class IPsecValidator:
             else:
                 # Verifica se o UUID realmente existe no firewall
                 try:
-                    response = get_cached_tunnel_options()
+                    response = IPsecValidator.get_cached_tunnel_options()
                     valid_uuids = [row["uuid"] for row in response]
                     if tunnel_uuid not in valid_uuids:
                         errors.append("UUID do túnel errado")
@@ -141,37 +131,4 @@ class IPsecValidator:
             errors.append("Tipo NAT deve ser 'binat' ou 'no-nat'")
         
         return len(errors) == 0, errors
-    
-    
-def get_cached_tunnel_options():
-    if not hasattr(g, 'tunnel_options'):
-        endpoint = "ipsec/connections/search_connection"
-        response = api_call(endpoint)
-        g.tunnel_options = [
-            {"uuid": row["uuid"], "description": row["description"]}
-            for row in response.get("rows", [])
-        ]
-    return g.tunnel_options
 
-def get_local_network() -> str:
-    response = api_call("interfaces/overview/interfacesInfo")
-
-    for iface in response.get("rows", []):
-        if iface.get("identifier", "").lower() == "lan":
-            ip = iface.get("config", {}).get("ipaddr")
-            subnet = iface.get("config", {}).get("subnet")
-            if ip and subnet:
-                network = ipaddress.IPv4Network(f"{ip}/{subnet}", strict=False)
-                return str(network)
-    
-    return None
-
-def get_ipsec_interface_name():
-    response = api_call("firewall/one_to_one/get_rule")
-
-    interfaces = response.get("rule", {}).get("interface", {})
-    for iface_key, iface_data in interfaces.items():
-        if iface_data.get("value") == 'IPsec':
-            return iface_key
-    
-    return None

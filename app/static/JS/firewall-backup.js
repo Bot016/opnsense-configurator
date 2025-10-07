@@ -42,7 +42,8 @@
       processing: isPtBr ? 'Processando...' : 'Processing...',
       serverError: isPtBr ? 'Erro do Servidor' : 'Server Error',
       networkError: isPtBr ? 'Erro de Conexão' : 'Network Error',
-      networkErrorMessage: isPtBr ? 'Não foi possível conectar ao servidor. Verifique sua conexão.' : 'Could not connect to server. Check your connection.'
+      networkErrorMessage: isPtBr ? 'Não foi possível conectar ao servidor. Verifique sua conexão.' : 'Could not connect to server. Check your connection.',
+      fileMaxSize: isPtBr ? 'O arquivo excede o limite de 5 KB' : 'File exceeds 5KB limit'
     };
   }
 
@@ -160,9 +161,9 @@
 
   // ===== Loading State Management =====
   function setLoadingState(isLoading) {
-    const submitButton = form?.querySelector('button[type="submit"]') || 
-                        form?.querySelector('.submit-button');
-    
+    const submitButton = form?.querySelector('button[type="submit"]') ||
+      form?.querySelector('.submit-button');
+
     if (submitButton) {
       if (isLoading) {
         submitButton.classList.add('loading');
@@ -179,8 +180,8 @@
     platformSeg?.querySelector('.platform-option.is-active')?.dataset.platform || 'opnsense';
 
   const showPlatformSection = (platform) => {
-    platformSections.forEach(sec => { 
-      sec.hidden = sec.dataset.for !== platform; 
+    platformSections.forEach(sec => {
+      sec.hidden = sec.dataset.for !== platform;
     });
   };
 
@@ -204,7 +205,7 @@
   };
 
   // ===== Event Listeners Setup =====
-  
+
   // Modal controls
   addBtn?.addEventListener('click', openModal);
   modal?.addEventListener('click', (e) => {
@@ -217,13 +218,13 @@
   platformSeg?.addEventListener('click', (ev) => {
     const btn = ev.target.closest('.platform-option');
     if (!btn) return;
-    
+
     platformSeg.querySelectorAll('.platform-option').forEach(b => {
-      b.classList.remove('is-active'); 
+      b.classList.remove('is-active');
       b.setAttribute('aria-selected', 'false');
     });
-    
-    btn.classList.add('is-active'); 
+
+    btn.classList.add('is-active');
     btn.setAttribute('aria-selected', 'true');
     showPlatformSection(btn.dataset.platform);
     focusFirstField();
@@ -233,15 +234,15 @@
   recSeg?.addEventListener('click', (ev) => {
     const btn = ev.target.closest('.recurrence-option');
     if (!btn) return;
-    
+
     recSeg.querySelectorAll('.recurrence-option').forEach(b => {
-      b.classList.remove('is-active'); 
+      b.classList.remove('is-active');
       b.setAttribute('aria-selected', 'false');
     });
-    
-    btn.classList.add('is-active'); 
+
+    btn.classList.add('is-active');
     btn.setAttribute('aria-selected', 'true');
-    
+
     const mode = btn.dataset.recurrence;
     if (weeklyBox) {
       weeklyBox.hidden = mode !== 'weekly';
@@ -289,7 +290,13 @@
     try {
       // Capture form data
       const platform = getActivePlatform();
-      
+      const file = tlsCertInput?.files?.[0];
+
+      if (platform === 'opnsense' && file && file.size > 5 * 1024) {
+        showAlert(texts.validationError, texts.fileMaxSize, 'error');
+        return;
+      }
+
       const formData = {
         platform,
         name: nameInput?.value?.trim() || '',
@@ -310,7 +317,7 @@
       const recBtn = recSeg?.querySelector('.recurrence-option.is-active');
       const mode = recBtn?.dataset.recurrence || 'daily';
       const time = timeInput?.value || '02:00';
-      
+
       const schedule = { type: mode, time };
       if (mode === 'weekly') {
         schedule.days = [...document.querySelectorAll('.weekday-chips .chip.is-selected')]
@@ -342,7 +349,7 @@
 
       if (response.ok && (result.success || result.ok)) {
         showAlert(texts.success, result.message || texts.successMessage, 'success');
-        
+
         // Update UI with new client
         if (result.client?.id && result.client?.name) {
           updateClientList(result.client);
@@ -364,12 +371,7 @@
       }
 
     } catch (error) {
-      console.error('Erro na requisição:', error);
-      showAlert(
-        texts.networkError,
-        texts.networkErrorMessage,
-        'error'
-      );
+      showAlert(texts.networkError, texts.networkErrorMessage, 'error');
     } finally {
       setLoadingState(false);
     }
@@ -401,7 +403,7 @@
   list?.addEventListener('click', (ev) => {
     const btn = ev.target.closest('.square-button[data-action="edit"]');
     if (!btn) return;
-    
+
     const id = btn.closest('.client-item')?.dataset?.id;
     if (id) {
       window.location.href = `/firewall-backup/${encodeURIComponent(id)}/edit`;

@@ -1,6 +1,7 @@
-from app.utils.ipsec_utils import IPsecValidator, get_local_network, get_ipsec_interface_name
+from app.utils.ipsec_utils import IPsecValidator
+from app.utils.backup_utils import BackupValidation
 from flask import Blueprint, request, jsonify
-from app.utils.api_utils import api_call
+from app.utils.firewall_utils import opnsenseUtils
 
 bp = Blueprint('api', __name__)
 
@@ -48,7 +49,7 @@ def create_ipsec():
                 "description": description
             }
         }
-        response_phase2 = api_call(endpoint, method="POST", payload=payload)
+        response_phase2 = opnsenseUtils.api_call(endpoint, method="POST", payload=payload)
         
         # Create Pre-Shared Key
         endpoint = "ipsec/pre_shared_keys/addItem"
@@ -61,12 +62,12 @@ def create_ipsec():
                 "remote_ident": data.get('client_identifier', '').strip()
             }
         }
-        api_call(endpoint, method="POST", payload=payload)
+        opnsenseUtils.api_call(endpoint, method="POST", payload=payload)
         
         # Create SPD and NAT
         if data.get('nat_type', 'binat').strip() == "binat":
-            local_subnet = get_local_network()
-            ipsec_interface = get_ipsec_interface_name()
+            local_subnet = opnsenseUtils.get_local_network()
+            ipsec_interface = IPsecValidator.get_ipsec_interface_name()
             
             # Create SPD
             endpoint = "ipsec/manual_spd/add"
@@ -80,7 +81,7 @@ def create_ipsec():
                     "source": local_subnet
                 }
             }
-            api_call(endpoint, method="POST", payload=payload)
+            opnsenseUtils.api_call(endpoint, method="POST", payload=payload)
             
             # Create NAT One to One
             endpoint = "firewall/one_to_one/add_rule"
@@ -101,7 +102,7 @@ def create_ipsec():
                     "description": f"NAT {data.get('client_name', '').strip()}"
                 }
             }
-            api_call(endpoint, method="POST", payload=payload)
+            opnsenseUtils.api_call(endpoint, method="POST", payload=payload)
 
         
         return jsonify({
@@ -117,12 +118,22 @@ def create_ipsec():
         
 @bp.route('/backup/create', methods=['POST'])
 def create_backup_schedule():
+    is_valid, errors = BackupValidation.backupValidation(request.form)
+        
+    if not is_valid:
+        return jsonify({
+            'success': False,
+            'message': 'Dados inválidos',
+            'errors': errors
+        }), 400
+    
     print("=== DEBUG INFO ===")
     print("is JSON:", request.is_multiprocess)
     print("Content-Type:", request.content_type)
-    print("Form data:", dict(request.form))
     print("Files:", dict(request.files))
     print("Has tls_cert file:", 'tls_cert' in request.files)
+    
+    
 
     file = request.files.get("tls_cert")
     if file:
@@ -145,7 +156,7 @@ def create_backup_schedule():
     return jsonify({
         'success': True,
         'message': 'Configuração criada com sucesso',
-    }), 200
+    }), 400
 
     
     

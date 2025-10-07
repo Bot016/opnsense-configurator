@@ -780,3 +780,7 @@ body.modal-open {
   cursor: pointer;
   padding: 14px 16px;
 }
+
+input[type="time"] {
+    font-family: monospace;
+}

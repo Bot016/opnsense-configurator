@@ -1,4 +1,4 @@
-from app.utils.ipsec_utils import get_cached_tunnel_options 
+from app.utils.ipsec_utils import IPsecValidator
 from flask import Blueprint, render_template, current_app
 
 bp = Blueprint('ipsec', __name__)
@@ -10,7 +10,7 @@ def ipsec_home():
     default_local_identifier = config.get("default_local_identifier") or None
     display_name = config.get("display_name") or None
     
-    tunnel_options = get_cached_tunnel_options()
+    tunnel_options = IPsecValidator.get_cached_tunnel_options()
 
     return render_template('ipsec.html', 
                         tunnel_options=tunnel_options, 
