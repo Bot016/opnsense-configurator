@@ -334,7 +334,6 @@
         method: 'POST',
         headers: {
           'X-Requested-With': 'XMLHttpRequest'
-          // NÃO definir Content-Type - deixa o browser definir automaticamente para FormData
         },
         body: fd
       });
@@ -352,8 +351,6 @@
         // Close modal and reset form
         closeModal();
         form.reset();
-        
-        console.log('Cliente criado com sucesso:', result);
 
       } else {
         // Handle validation or server errors

@@ -107,8 +107,6 @@ def create_ipsec():
         return jsonify({
             'success': True,
             'message': 'Configuração IPsec criada com sucesso',
-            'config_id': 'exemplo-uuid-gerado',  # Substitua por ID real
-            'data': data
         }), 201
     
     except Exception as e:
@@ -120,7 +118,36 @@ def create_ipsec():
 @bp.route('/backup/create', methods=['POST'])
 def create_backup_schedule():
     print("=== DEBUG INFO ===")
+    print("is JSON:", request.is_multiprocess)
     print("Content-Type:", request.content_type)
     print("Form data:", dict(request.form))
     print("Files:", dict(request.files))
     print("Has tls_cert file:", 'tls_cert' in request.files)
+
+    file = request.files.get("tls_cert")
+    if file:
+        print("Nome do arquivo:", file.filename)
+        print("Tipo MIME:", file.mimetype)
+
+        # Lê o conteúdo como bytes
+        content = file.read()
+        print("Tamanho do conteúdo:", len(content))
+        
+        # Se for texto (como PEM), pode decodificar:
+        try:
+            print("Prévia do conteúdo:\n", content.decode('utf-8'))
+        except UnicodeDecodeError:
+            print("Arquivo não é texto legível")
+
+        # IMPORTANTE: se quiser usar o arquivo depois, reposicione o ponteiro:
+        file.stream.seek(0)
+
+    return jsonify({
+        'success': True,
+        'message': 'Configuração criada com sucesso',
+    }), 200
+
+    
+    
+    
+    
