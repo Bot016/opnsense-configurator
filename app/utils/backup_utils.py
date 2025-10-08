@@ -4,11 +4,8 @@ import json
 
 class BackupValidation:
     @staticmethod
-    def backupValidation(data):
+    def backupValidation(data, filedata):
         errors = []
-        is_valid = False
-        print(data)
-        
         # Verify plataform name
         plataform = data.get('platform', '').strip()
         if plataform not in ('opnsense', 'pfsense'):
@@ -23,8 +20,9 @@ class BackupValidation:
             api_secret = data.get('api_secret', '').strip()
             if not api_key or not api_secret:
                 errors.append("Insira a API KEY ou API SECRET")
-            
-        
+            if filedata == 0:
+                errors.append("É necessário anexar um arquivo")
+
         # Verify client name
         client_name = data.get('name', '').strip()
         if not client_name:
@@ -76,5 +74,4 @@ class BackupValidation:
                     if invalid_days:
                         errors.append(f"Dias inválidos: {', '.join(invalid_days)}")
                     
-        
-        return is_valid, errors 
+        return len(errors) == 0, errors

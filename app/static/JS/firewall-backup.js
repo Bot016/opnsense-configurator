@@ -37,8 +37,8 @@
 
     return {
       validationError: isPtBr ? 'Erro na Validação' : 'Validation Error',
-      success: isPtBr ? 'Sucesso!' : 'Success!',
-      successMessage: isPtBr ? 'Cliente de backup criado com sucesso!' : 'Backup client created successfully!',
+      success: isPtBr ? 'Sucesso' : 'Success',
+      successMessage: isPtBr ? 'Cliente de backup criado com sucesso' : 'Backup client created successfully',
       processing: isPtBr ? 'Processando...' : 'Processing...',
       serverError: isPtBr ? 'Erro do Servidor' : 'Server Error',
       networkError: isPtBr ? 'Erro de Conexão' : 'Network Error',

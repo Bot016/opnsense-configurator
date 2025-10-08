@@ -20,7 +20,6 @@ def create_ipsec():
         
         # Required data input validation
         is_valid, errors = IPsecValidator.validate_ipsec_data(data)
-        
         if not is_valid:
             return jsonify({
                 'success': False,
@@ -118,40 +117,14 @@ def create_ipsec():
         
 @bp.route('/backup/create', methods=['POST'])
 def create_backup_schedule():
-    is_valid, errors = BackupValidation.backupValidation(request.form)
-        
+    is_valid, errors = BackupValidation.backupValidation(request.form, len(request.files))
+    print(request.form)
     if not is_valid:
         return jsonify({
             'success': False,
-            'message': 'Dados inválidos',
             'errors': errors
         }), 400
     
-    print("=== DEBUG INFO ===")
-    print("is JSON:", request.is_multiprocess)
-    print("Content-Type:", request.content_type)
-    print("Files:", dict(request.files))
-    print("Has tls_cert file:", 'tls_cert' in request.files)
-    
-    
-
-    file = request.files.get("tls_cert")
-    if file:
-        print("Nome do arquivo:", file.filename)
-        print("Tipo MIME:", file.mimetype)
-
-        # Lê o conteúdo como bytes
-        content = file.read()
-        print("Tamanho do conteúdo:", len(content))
-        
-        # Se for texto (como PEM), pode decodificar:
-        try:
-            print("Prévia do conteúdo:\n", content.decode('utf-8'))
-        except UnicodeDecodeError:
-            print("Arquivo não é texto legível")
-
-        # IMPORTANTE: se quiser usar o arquivo depois, reposicione o ponteiro:
-        file.stream.seek(0)
 
     return jsonify({
         'success': True,
