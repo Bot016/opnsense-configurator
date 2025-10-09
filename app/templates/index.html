@@ -10,7 +10,7 @@
 {% block content %}
 <section class="hero-section">
     <div class="hero-content">
-        <h1>Bem-vindo ao <span class="highlight">{{display_name}}</span></h1>
+        <h1>Bem-vindo ao <span class="highlight">{{config.get('DISPLAY_NAME', 'None')}}</span></h1>
         <p>Sua central inteligente de segurança e automação de rede</p>
         <a href="{{ url_for('ipsec.ipsec_home') }}" class="btn-primary">Começar com IPsec Creator</a>
     </div>

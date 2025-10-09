@@ -1,7 +1,11 @@
 from app.utils.ipsec_utils import IPsecValidator
 from app.utils.backup_utils import BackupValidation
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from app.utils.firewall_utils import opnsenseUtils
+from app.db import db
+from app.models import FirewallBackup
+from werkzeug.utils import secure_filename
+import json, uuid, os
 
 bp = Blueprint('api', __name__)
 
@@ -114,24 +118,110 @@ def create_ipsec():
             'success': False,
             'message': f'Erro interno do servidor: {str(e)}'
         }), 500
-        
+
 @bp.route('/backup/create', methods=['POST'])
 def create_backup_schedule():
-    is_valid, errors = BackupValidation.backupValidation(request.form, len(request.files))
-    print(request.form)
+    form = request.form or request.json or {}
+
+    is_valid, errors = BackupValidation.backupValidation(form, request.files)
     if not is_valid:
-        return jsonify({
-            'success': False,
-            'errors': errors
-        }), 400
-    
+        return jsonify({'success': False, 'errors': errors}), 400
+
+    platform = form.get('platform').strip().lower()
+    name     = form.get('name').strip()
+    host     = form.get('host').strip()
+    port     = int(form.get('port'))
+
+    schedule_raw = form.get('schedule')
+    schedule = json.loads(schedule_raw) if isinstance(schedule_raw, str) else schedule_raw
+
+    api_key = api_secret = username = password = None
+    cert_pem_path = None
+
+    if platform == 'opnsense':
+        api_key    = form.get('api_key').strip()
+        api_secret = form.get('api_secret').strip()
+
+        # upload opcional/obrigatório conforme sua validação
+        cert_file = request.files.get('tls_cert')
+        if not cert_file or not cert_file.filename.lower().endswith('.pem'):
+            return jsonify({'success': False, 'errors': ['Arquivo .pem é obrigatório']}), 400
+        
+        client_name = secure_filename(form.get('name', 'unkown_client'))
+        unique = f"{client_name}-{uuid.uuid4().hex[:6]}.pem"
+        save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], unique)
+
+        cert_file.save(save_path)
+        cert_pem_path = save_path
+
+    else:  # pfSense
+        username = form.get('username').strip()
+        password = form.get('password').strip()
+
+    # UPSERT 
+    fw = FirewallBackup.query.filter_by(platform=platform, host=host, port=port).first()
+    if not fw:
+        fw = FirewallBackup(
+            platform=platform, name=name, host=host, port=port,
+            api_key=api_key, api_secret=api_secret,
+            username=username, password=password,
+            cert_pem_path=cert_pem_path, schedule=schedule
+        )
+        db.session.add(fw)
+    else:
+        fw.name = name
+        fw.api_key = api_key
+        fw.api_secret = api_secret
+        fw.username = username
+        fw.password = password
+        if cert_pem_path:
+            fw.cert_pem_path = cert_pem_path
+        fw.schedule = schedule
+
+    db.session.commit()
 
     return jsonify({
         'success': True,
-        'message': 'Configuração criada com sucesso',
-    }), 400
+        'message': 'Configuração criada/atualizada com sucesso',
+        'firewall': fw.as_dict()
+    }), 201
+    
+@bp.route("/backup/list", methods=["GET"])
+def list_backups():
+    q = (request.args.get("q") or "").strip()
+    platform = (request.args.get("platform") or "").strip().lower()
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except Exception:
+        page = 1
+    try:
+        per_page = min(100, max(1, int(request.args.get("per_page", 20))))
+    except Exception:
+        per_page = 20
 
-    
-    
-    
+    query = FirewallBackup.query
+
+    if platform in ("opnsense", "pfsense"):
+        query = query.filter(FirewallBackup.platform == platform)
+
+    if q:
+        like = f"%{q}%"
+        query = query.filter(
+            db.or_(
+                FirewallBackup.name.ilike(like),
+                FirewallBackup.host.ilike(like),
+            )
+        )
+
+    pagination = query.order_by(FirewallBackup.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+    clients = [row.as_dict() for row in pagination.items]
+    return jsonify({
+        "clients": clients,
+        "page": pagination.page,
+        "per_page": pagination.per_page,
+        "total": pagination.total,
+    })
     

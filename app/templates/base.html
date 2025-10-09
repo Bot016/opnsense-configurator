@@ -14,7 +14,7 @@
         <div class="header-container">
             <div class="logo">
                 <span class="material-symbols-outlined">security</span>
-                <span class="logo-text">{{display_name}}</span>
+                <span class="logo-text">{{config.get('DISPLAY_NAME', 'None')}}</span>
             </div>
             <nav class="nav-menu">
                 <a href="/" class="nav-link {{ 'active' if request.endpoint == 'main.home' }}">
