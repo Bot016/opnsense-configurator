@@ -410,4 +410,60 @@
     }
   });
 
+  // ===== Load Clients from API =====
+async function loadClients() {
+  try {
+    // Mostra o estado "Loading..."
+    list.innerHTML = `
+      <div class="empty-card" id="loading-card">
+        <p>Loading clients...</p>
+      </div>
+    `;
+
+    const response = await fetch('/api/backup/list');
+    const data = await response.json();
+
+    // Limpa antes de renderizar
+    list.innerHTML = '';
+
+    if (data.clients && data.clients.length > 0) {
+      container?.classList.remove('is-empty');
+
+      data.clients.forEach(client => {
+        const item = document.createElement('div');
+        item.className = 'client-item';
+        item.dataset.id = client.id;
+        item.innerHTML = `
+          <div class="item-row">
+            <div class="item-display" title="${client.name}">${client.name}</div>
+            <button type="button" class="square-button" title="Edit client" data-action="edit">
+              <span class="material-symbols-outlined">edit</span>
+            </button>
+          </div>
+        `;
+        list.appendChild(item);
+      });
+    } else {
+      // Mostra "No clients found"
+      container?.classList.add('is-empty');
+      list.innerHTML = `
+        <div class="empty-card">
+          <p>No clients found.</p>
+        </div>
+      `;
+    }
+
+  } catch (error) {
+    console.error('Error loading clients:', error);
+    const texts = getLanguageTexts();
+    showAlert(texts.serverError, texts.networkErrorMessage, 'error');
+    list.innerHTML = `
+      <div class="empty-card">
+        <p>Erro ao carregar clientes.</p>
+      </div>
+    `;
+  }
+}
+loadClients();
+
 })();

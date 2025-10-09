@@ -10,31 +10,24 @@
 {% endblock %}
 
 {% block content %}
-<div class="container {% if not clients or clients|length == 0 %}is-empty{% endif %}">
-    <form id="clients-form" autocomplete="off">
-        <div class="client-list" id="client-list" data-next-id="{{ (clients|length) if clients is defined else 0 }}">
-            {% if clients and clients|length > 0 %}
-            {% for c in clients %}
-            <div class="client-item" data-id="{{ c.id }}">
-                <div class="item-row">
-                    <div class="item-display" title="{{ c.name }}">{{ c.name }}</div>
-                    <button type="button" class="square-button" title="Edit client" data-action="edit">
-                        <span class="material-symbols-outlined">edit</span>
-                    </button>
-                </div>
-            </div>
-            {% endfor %}
-            {% else %}
-            <div class="empty-card">
-                <p>No clients found.</p>
-                <button type="button" id="add-client" class="btn-link only-icon" title="Add client">
-                    <span class="material-symbols-outlined">add</span>
-                </button>
-            </div>
-            {% endif %}
-        </div>
-    </form>
+
+
+
+<div class="container is-empty">
+  <form id="clients-form" autocomplete="off">
+    <div class="client-list" id="client-list">
+      <div class="empty-card" id="loading-card">
+        <p>Loading clients...</p>
+      </div>
+    </div>
+  </form>
+    <div class="add-client">
+        <button type="button" id="add-client" class="btn-link only-icon" title="Add client">
+            <span class="material-symbols-outlined">add</span>
+        </button>
+    </div>
 </div>
+
 <div class="modal-overlay" id="add-modal" hidden>
     <div class="modal">
         <div class="modal-card">

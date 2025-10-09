@@ -121,10 +121,10 @@
 }
 
 /* Empty-state inside the main card */
-.empty-card {
+.add-client {
   background: transparent;
   border-radius: 0;
-  padding: 40px 20px;
+  padding-top: 16px;
   box-shadow: none;
   width: 100%;
   margin: 0;
@@ -135,7 +135,7 @@
   gap: 20px;
 }
 
-.empty-card p {
+.add-client p {
   color: var(--text-primary);
   font-size: 16px;
   font-weight: 500;
