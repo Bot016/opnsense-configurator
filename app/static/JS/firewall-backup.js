@@ -324,8 +324,6 @@
           .map(c => c.dataset.day);
       }
 
-      console.log('Enviando dados para validação:', { ...formData, schedule });
-
       // Prepare FormData for multipart submission
       const fd = new FormData();
       Object.entries(formData).forEach(([k, v]) => fd.append(k, v));
@@ -358,6 +356,7 @@
         // Close modal and reset form
         closeModal();
         form.reset();
+        loadClients();
 
       } else {
         // Handle validation or server errors
