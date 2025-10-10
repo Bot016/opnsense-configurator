@@ -334,12 +334,14 @@
         fd.append('tls_cert', tlsCertInput.files[0]);
       }
 
-      // Submit to API
-      const response = await fetch('/api/backup/create', {
-        method: 'POST',
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest'
-        },
+      // Detecta edit mode
+      const editId = form.dataset.editId;
+      const url = editId ? `/api/backup/${editId}` : '/api/backup/create';
+      const method = editId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
         body: fd
       });
 
@@ -357,6 +359,11 @@
         closeModal();
         form.reset();
         loadClients();
+
+        delete form.dataset.editId;
+        document.getElementById('delete-client').hidden = true;
+        const submitBtn = form.querySelector('.submit-button');
+        submitBtn.innerHTML = `<span class="material-symbols-outlined" style="margin-right:8px;">save</span> Salvar`;
 
       } else {
         // Handle validation or server errors
@@ -405,34 +412,32 @@
 
     const id = btn.closest('.client-item')?.dataset?.id;
     if (id) {
-      window.location.href = `/firewall-backup/${encodeURIComponent(id)}/edit`;
+      editClient(id);
     }
   });
 
   // ===== Load Clients from API =====
-async function loadClients() {
-  try {
-    // Mostra o estado "Loading..."
-    list.innerHTML = `
+  async function loadClients() {
+    try {
+      list.innerHTML = `
       <div class="empty-card" id="loading-card">
         <p>Loading clients...</p>
       </div>
     `;
 
-    const response = await fetch('/api/backup/list');
-    const data = await response.json();
+      const response = await fetch('/api/backup/list');
+      const data = await response.json();
 
-    // Limpa antes de renderizar
-    list.innerHTML = '';
+      list.innerHTML = '';
 
-    if (data.clients && data.clients.length > 0) {
-      container?.classList.remove('is-empty');
+      if (data.clients && data.clients.length > 0) {
+        container?.classList.remove('is-empty');
 
-      data.clients.forEach(client => {
-        const item = document.createElement('div');
-        item.className = 'client-item';
-        item.dataset.id = client.id;
-        item.innerHTML = `
+        data.clients.forEach(client => {
+          const item = document.createElement('div');
+          item.className = 'client-item';
+          item.dataset.id = client.id;
+          item.innerHTML = `
           <div class="item-row">
             <div class="item-display" title="${client.name}">${client.name}</div>
             <button type="button" class="square-button" title="Edit client" data-action="edit">
@@ -440,29 +445,108 @@ async function loadClients() {
             </button>
           </div>
         `;
-        list.appendChild(item);
-      });
-    } else {
-      // Mostra "No clients found"
-      container?.classList.add('is-empty');
-      list.innerHTML = `
+          list.appendChild(item);
+        });
+      } else {
+        // Mostra "No clients found"
+        container?.classList.add('is-empty');
+        list.innerHTML = `
         <div class="empty-card">
           <p>No clients found.</p>
         </div>
       `;
-    }
+      }
 
-  } catch (error) {
-    console.error('Error loading clients:', error);
-    const texts = getLanguageTexts();
-    showAlert(texts.serverError, texts.networkErrorMessage, 'error');
-    list.innerHTML = `
+    } catch (error) {
+      console.error('Error loading clients:', error);
+      const texts = getLanguageTexts();
+      showAlert(texts.serverError, texts.networkErrorMessage, 'error');
+      list.innerHTML = `
       <div class="empty-card">
         <p>Erro ao carregar clientes.</p>
       </div>
     `;
+    }
   }
-}
-loadClients();
+  loadClients();
+
+
+  // ===== Função para carregar dados de um cliente e abrir o modal em modo edição =====
+  async function editClient(id) {
+    try {
+      const res = await fetch(`/api/backup/${id}`);
+      if (!res.ok) throw new Error('Falha ao carregar cliente');
+      const client = await res.json();
+
+      nameInput.value = client.name || '';
+      hostInput.value = client.host || '';
+      portInput.value = client.port || 7070;
+
+      const platform = client.platform || 'opnsense';
+      platformSeg.querySelectorAll('.platform-option').forEach(btn => {
+        btn.classList.toggle('is-active', btn.dataset.platform === platform);
+        btn.setAttribute('aria-selected', btn.dataset.platform === platform);
+      });
+      showPlatformSection(platform);
+
+      if (platform === 'opnsense') {
+        apiKeyInput.value = client.api_key || '';
+        apiSecretInput.value = client.api_secret || '';
+      } else {
+        userInput.value = client.username || '';
+        passInput.value = client.password || '';
+      }
+
+      const sched = client.schedule || {};
+      timeInput.value = sched.time || '02:00';
+      const recType = sched.type || 'daily';
+      recSeg.querySelectorAll('.recurrence-option').forEach(btn => {
+        btn.classList.toggle('is-active', btn.dataset.recurrence === recType);
+        btn.setAttribute('aria-selected', btn.dataset.recurrence === recType);
+      });
+
+      weeklyBox.hidden = recType !== 'weekly';
+      document.querySelectorAll('.weekday-chips .chip').forEach(chip => {
+        chip.classList.toggle('is-selected', (sched.days || []).includes(chip.dataset.day));
+      });
+
+      form.dataset.editId = client.id;
+
+      document.getElementById('delete-client').hidden = false;
+
+      openModal();
+
+    } catch (err) {
+      console.error(err);
+      showAlert('Erro', 'Não foi possível carregar os dados do cliente.', 'error');
+    }
+  }
+
+  // ===== Delete Client =====
+  document.getElementById('delete-client')?.addEventListener('click', async () => {
+    const editId = form.dataset.editId;
+    if (!editId) return;
+
+    if (!confirm('Tem certeza que deseja excluir este cliente?')) return;
+
+    try {
+      const res = await fetch(`/api/backup/${editId}`, { method: 'DELETE' });
+      const result = await res.json();
+
+      if (res.ok && result.success) {
+        showAlert('Sucesso', result.message || 'Cliente excluído com sucesso', 'success');
+        closeModal();
+        form.reset();
+        delete form.dataset.editId;
+        document.getElementById('delete-client').hidden = true;
+        loadClients();
+      } else {
+        showAlert('Erro', result.message || 'Falha ao excluir o cliente.', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showAlert('Erro', 'Não foi possível excluir o cliente.', 'error');
+    }
+  });
 
 })();

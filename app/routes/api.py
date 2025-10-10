@@ -188,40 +188,47 @@ def create_backup_schedule():
     
 @bp.route("/backup/list", methods=["GET"])
 def list_backups():
-    q = (request.args.get("q") or "").strip()
-    platform = (request.args.get("platform") or "").strip().lower()
-    try:
-        page = max(1, int(request.args.get("page", 1)))
-    except Exception:
-        page = 1
-    try:
-        per_page = min(100, max(1, int(request.args.get("per_page", 20))))
-    except Exception:
-        per_page = 20
+    """Retorna apenas o nome e o ID dos firewalls cadastrados."""
+    firewalls = FirewallBackup.query.order_by(FirewallBackup.created_at.desc()).all()
+    
+    clients = [
+        {"id": fw.id, "name": fw.name}
+        for fw in firewalls
+    ]
 
-    query = FirewallBackup.query
-
-    if platform in ("opnsense", "pfsense"):
-        query = query.filter(FirewallBackup.platform == platform)
-
-    if q:
-        like = f"%{q}%"
-        query = query.filter(
-            db.or_(
-                FirewallBackup.name.ilike(like),
-                FirewallBackup.host.ilike(like),
-            )
-        )
-
-    pagination = query.order_by(FirewallBackup.created_at.desc()).paginate(
-        page=page, per_page=per_page, error_out=False
-    )
-
-    clients = [row.as_dict() for row in pagination.items]
     return jsonify({
         "clients": clients,
-        "page": pagination.page,
-        "per_page": pagination.per_page,
-        "total": pagination.total,
     })
-    
+
+@bp.route("/backup/<int:client_id>", methods=["GET"])
+def get_backup(client_id):
+    fw = FirewallBackup.query.get_or_404(client_id)
+    return jsonify(fw.as_dict())
+
+@bp.route("/backup/<int:client_id>", methods=["PUT"])
+def update_backup(client_id):
+    fw = FirewallBackup.query.get_or_404(client_id)
+    form = request.form or request.json or {}
+
+    fw.name = form.get('name', fw.name)
+    fw.host = form.get('host', fw.host)
+    fw.port = int(form.get('port', fw.port))
+    fw.platform = form.get('platform', fw.platform)
+    fw.schedule = json.loads(form.get('schedule', json.dumps(fw.schedule)))
+
+    if fw.platform == 'opnsense':
+        fw.api_key = form.get('api_key', fw.api_key)
+        fw.api_secret = form.get('api_secret', fw.api_secret)
+    else:
+        fw.username = form.get('username', fw.username)
+        fw.password = form.get('password', fw.password)
+
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'Cliente atualizado com sucesso'})
+
+@bp.route("/backup/<int:client_id>", methods=["DELETE"])
+def delete_backup(client_id):
+    fw = FirewallBackup.query.get_or_404(client_id)
+    db.session.delete(fw)
+    db.session.commit()
+    return jsonify({'success': True, 'message': f'Cliente {fw.name} excluído com sucesso'})

@@ -6,7 +6,7 @@ class FirewallBackup(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # Identificação
+    # Identify
     platform = db.Column(db.String(20),  nullable=False, index=True)  # 'opnsense' | 'pfsense'
     name     = db.Column(db.String(100), nullable=False)
     host     = db.Column(db.String(255), nullable=False, index=True)
@@ -21,9 +21,7 @@ class FirewallBackup(db.Model):
     username = db.Column(db.String(255), nullable=True)
     password = db.Column(db.String(255), nullable=True)
 
-    # Agendamento único por firewall
-    # daily:  {"type":"daily","time":"02:00"}
-    # weekly: {"type":"weekly","time":"02:00","days":["mon","wed","sun"]}
+    #schdule
     schedule = db.Column(db.JSON, nullable=False)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
